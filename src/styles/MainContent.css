@@ -1,0 +1,41 @@
+.main-content {
+    background: #f4f6fb;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.main-content h3 {
+    font-size: 2rem;
+    margin-bottom: 12px;
+    color: #2d2d2d;
+}
+
+.main-content p {
+    color: #555;
+    font-size: 1.1rem;
+}
+
+.main-content-row {
+    display: flex;
+    height: 100%;
+    background: #f4f6fb;
+}
+
+.mail-list {
+    width: 380px;
+    background: #fff;
+    border-right: 1px solid #e0e0e0;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.reading-pane {
+    flex: 1;
+    background: #f9f9fb;
+    padding: 32px;
+    overflow-y: auto;
+    height: 100%;
+}
