@@ -12,6 +12,10 @@ import DialogContentText from '@mui/material/DialogContentText';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
+import useStore from '../store';
+import axios from 'axios';
 
 const ComposeModal = ({ open, onClose, onSend, replyTo, to: toProp, cc: ccProp, subject: subjectProp, body: bodyProp, attachments: attachmentsProp, scheduledAt: scheduledAtProp }) => {
     const [to, setTo] = useState('');
@@ -22,6 +26,10 @@ const ComposeModal = ({ open, onClose, onSend, replyTo, to: toProp, cc: ccProp, 
     const [dragActive, setDragActive] = useState(false);
     const [scheduledAt, setScheduledAt] = useState(null);
     const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const saveDraft = useStore(state => state.saveDraft);
+    const sendMail = useStore(state => state.sendMail);
 
     // Determine mode: edit, reply, or new
     const mode = replyTo ? 'reply' : (toProp || ccProp || subjectProp || bodyProp || attachmentsProp || scheduledAtProp) ? 'edit' : 'new';
@@ -85,15 +93,35 @@ const ComposeModal = ({ open, onClose, onSend, replyTo, to: toProp, cc: ccProp, 
         setDragActive(false);
     };
 
-    const handleSend = () => {
+    const handleSend = async () => {
         if (!to || !subject || !body) return;
-        onSend({ to, cc, subject, body, attachments, scheduledAt });
-        setTo('');
-        setCc('');
-        setSubject('');
-        setBody('');
-        setAttachments([]);
-        setScheduledAt(null);
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const emailData = { to, cc, subject, body, attachments, scheduledAt };
+
+            // Use the store's sendMail function which calls the backend API
+            await sendMail(emailData);
+
+            // Clear form
+            setTo('');
+            setCc('');
+            setSubject('');
+            setBody('');
+            setAttachments([]);
+            setScheduledAt(null);
+
+            // Close modal
+            if (onClose) onClose();
+
+        } catch (error) {
+            console.error('Error sending email:', error);
+            setError(error.response?.data?.error || error.message || 'Failed to send email');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleScheduleSend = () => {
@@ -109,16 +137,48 @@ const ComposeModal = ({ open, onClose, onSend, replyTo, to: toProp, cc: ccProp, 
         handleSend();
     };
 
+    const handleSaveDraft = async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            await saveDraft({ to, cc, subject, body, attachments, scheduledAt });
+
+            // Clear form
+            setTo('');
+            setCc('');
+            setSubject('');
+            setBody('');
+            setAttachments([]);
+            setScheduledAt(null);
+
+            // Close modal
+            if (onClose) onClose();
+        } catch (error) {
+            console.error('Error saving draft:', error);
+            setError(error.response?.data?.error || error.message || 'Failed to save draft');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>{replyTo ? 'Reply' : 'Compose Mail'}</DialogTitle>
             <DialogContent>
+                {error && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        {error}
+                    </Alert>
+                )}
+
                 <TextField
                     label="To"
                     value={to}
                     onChange={e => setTo(e.target.value)}
                     fullWidth
                     margin="normal"
+                    disabled={loading}
                 />
                 <TextField
                     label="CC"
@@ -126,6 +186,7 @@ const ComposeModal = ({ open, onClose, onSend, replyTo, to: toProp, cc: ccProp, 
                     onChange={e => setCc(e.target.value)}
                     fullWidth
                     margin="normal"
+                    disabled={loading}
                 />
                 <TextField
                     label="Subject"
@@ -133,6 +194,7 @@ const ComposeModal = ({ open, onClose, onSend, replyTo, to: toProp, cc: ccProp, 
                     onChange={e => setSubject(e.target.value)}
                     fullWidth
                     margin="normal"
+                    disabled={loading}
                 />
                 <TextField
                     label="Body"
@@ -142,6 +204,7 @@ const ComposeModal = ({ open, onClose, onSend, replyTo, to: toProp, cc: ccProp, 
                     margin="normal"
                     multiline
                     minRows={6}
+                    disabled={loading}
                 />
                 <div
                     style={{
@@ -153,12 +216,13 @@ const ComposeModal = ({ open, onClose, onSend, replyTo, to: toProp, cc: ccProp, 
                         textAlign: 'center',
                         position: 'relative',
                         transition: 'background 0.2s',
-                        cursor: 'pointer',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        opacity: loading ? 0.6 : 1,
                     }}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDragEnd={handleDragLeave}
+                    onDrop={loading ? undefined : handleDrop}
+                    onDragOver={loading ? undefined : handleDragOver}
+                    onDragLeave={loading ? undefined : handleDragLeave}
+                    onDragEnd={loading ? undefined : handleDragLeave}
                 >
                     <input
                         accept="*"
@@ -167,9 +231,15 @@ const ComposeModal = ({ open, onClose, onSend, replyTo, to: toProp, cc: ccProp, 
                         multiple
                         type="file"
                         onChange={handleFileChange}
+                        disabled={loading}
                     />
                     <label htmlFor="attachment-input">
-                        <Button variant="outlined" component="span" startIcon={<AttachFileIcon />}>
+                        <Button
+                            variant="outlined"
+                            component="span"
+                            startIcon={<AttachFileIcon />}
+                            disabled={loading}
+                        >
                             Add Attachments
                         </Button>
                     </label>
@@ -192,7 +262,14 @@ const ComposeModal = ({ open, onClose, onSend, replyTo, to: toProp, cc: ccProp, 
                                             <ImageIcon style={{ color: '#bbb', fontSize: 32 }} />
                                         )}
                                         <span>{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
-                                        <Button size="small" color="error" onClick={() => handleRemoveAttachment(idx)}>Remove</Button>
+                                        <Button
+                                            size="small"
+                                            color="error"
+                                            onClick={() => handleRemoveAttachment(idx)}
+                                            disabled={loading}
+                                        >
+                                            Remove
+                                        </Button>
                                     </li>
                                 );
                             })}
@@ -201,18 +278,33 @@ const ComposeModal = ({ open, onClose, onSend, replyTo, to: toProp, cc: ccProp, 
                 </div>
             </DialogContent>
             <DialogActions>
-                <Button onClick={onClose}>Cancel</Button>
+                <Button onClick={onClose} disabled={loading}>Cancel</Button>
+                <Button
+                    onClick={handleSaveDraft}
+                    variant="outlined"
+                    color="secondary"
+                    disabled={loading || (!to && !subject && !body)}
+                    startIcon={loading ? <CircularProgress size={16} /> : null}
+                >
+                    {loading ? 'Saving...' : 'Save as Draft'}
+                </Button>
                 <Button
                     onClick={handleScheduleSend}
                     variant="outlined"
                     color="primary"
                     startIcon={<ScheduleIcon />}
-                    disabled={!to || !subject || !body}
+                    disabled={loading || !to || !subject || !body}
                 >
                     Schedule Send
                 </Button>
-                <Button onClick={handleSend} variant="contained" color="primary" disabled={!to || !subject || !body}>
-                    Send
+                <Button
+                    onClick={handleSend}
+                    variant="contained"
+                    color="primary"
+                    disabled={loading || !to || !subject || !body}
+                    startIcon={loading ? <CircularProgress size={16} /> : null}
+                >
+                    {loading ? 'Sending...' : 'Send'}
                 </Button>
             </DialogActions>
             <Dialog open={scheduleDialogOpen} onClose={handleScheduleDialogClose}>
@@ -227,13 +319,18 @@ const ComposeModal = ({ open, onClose, onSend, replyTo, to: toProp, cc: ccProp, 
                             value={scheduledAt}
                             onChange={setScheduledAt}
                             minDateTime={new Date()}
-                            renderInput={(params) => <TextField {...params} fullWidth margin="normal" />}
+                            renderInput={(params) => <TextField {...params} fullWidth margin="normal" disabled={loading} />}
                         />
                     </LocalizationProvider>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleScheduleDialogClose}>Cancel</Button>
-                    <Button onClick={handleScheduleConfirm} variant="contained" color="primary" disabled={!scheduledAt}>
+                    <Button onClick={handleScheduleDialogClose} disabled={loading}>Cancel</Button>
+                    <Button
+                        onClick={handleScheduleConfirm}
+                        variant="contained"
+                        color="primary"
+                        disabled={!scheduledAt || loading}
+                    >
                         Confirm
                     </Button>
                 </DialogActions>

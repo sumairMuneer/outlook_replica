@@ -12,8 +12,8 @@ import '../styles/MainContent.css';
 
 const knownSenders = ['Microsoft', 'HR Department', 'Team Lead', 'Finance Department', 'Management', 'Sales Manager'];
 
-const MainContent = ({ mails, selectedMail, onMailSelect, onReply, onDelete, onMoveTo, onToggleRead, onToggleStar, onSelectMail, onSelectAll, selectedMailIds, selectedFolder, onBulkStar, onToggleFlag, onBulkFlag, onTogglePin, onBulkPin, onDeleteMail, onBulkRead, conversations, toggleConversation, groupByConversation, toggleGrouping, onEditScheduled, onCancelScheduled }) => {
-    const [focusedTab, setFocusedTab] = useState('Focused');
+const MainContent = ({ mails, selectedMail, onMailSelect, onReply, onDelete, onMoveTo, onToggleRead, onToggleStar, onSelectMail, onSelectAll, selectedMailIds, selectedFolder, onBulkStar, onToggleFlag, onBulkFlag, onTogglePin, onBulkPin, onDeleteMail, onBulkRead, conversations, onEditScheduled, onCancelScheduled }) => {
+    const [focusedTab, setFocusedTab] = useState('Other');
 
     let displayConversations = conversations;
     let showTabs = false;
@@ -80,15 +80,6 @@ const MainContent = ({ mails, selectedMail, onMailSelect, onReply, onDelete, onM
                             </Tabs>
                         )}
                     </div>
-                    <Tooltip title={groupByConversation ? 'Group by Date' : 'Group by Conversation'}>
-                        <IconButton
-                            onClick={toggleGrouping}
-                            size="small"
-                            sx={{ color: '#0078d4' }}
-                        >
-                            {groupByConversation ? <ViewModuleIcon /> : <ViewListIcon />}
-                        </IconButton>
-                    </Tooltip>
                 </div>
                 <MailList
                     conversations={displayConversations}
@@ -107,8 +98,6 @@ const MainContent = ({ mails, selectedMail, onMailSelect, onReply, onDelete, onM
                     onSelectMail={onSelectMail}
                     onSelectAll={onSelectAll}
                     handleDragStart={handleDragStart}
-                    toggleConversation={toggleConversation}
-                    groupByConversation={groupByConversation}
                     formatDate={formatDate}
                     onEditScheduled={typeof onEditScheduled === 'function' ? onEditScheduled : undefined}
                     onCancelScheduled={typeof onCancelScheduled === 'function' ? onCancelScheduled : undefined}
